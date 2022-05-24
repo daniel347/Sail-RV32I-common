@@ -74,6 +74,7 @@ module instruction_memory(addr, out, clk);
 		 */
 		$readmemh("verilog/program.hex",instruction_memory);
 	end
+	// Some random change to the verilog
 	always @(posedge clk) begin
 		out <= instruction_memory[addr >> 2];
 	end
