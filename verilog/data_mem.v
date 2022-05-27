@@ -215,19 +215,22 @@ module data_mem (clk, addr, write_data, memwrite, memread, sign_mask, read_data,
 	/*
 	 *	LED register interfacing with I/O
 	 */
+
+	 
 	always @(posedge clk) begin
 		if(memwrite == 1'b1 && addr == 32'h2000) begin
 			led_reg <= write_data;
 		end
 	end
 
-	always @(negedge clk) begin	
+	/*
+	always @(negedge clk) begin
 		memread_buf <= memread;
 		memwrite_buf <= memwrite;
 
 		word_buf <= data_block[addr_buf_block_addr - 32'h1000];
 	end
-
+	*/
 	/*
 	 *	State machine
 	 */
