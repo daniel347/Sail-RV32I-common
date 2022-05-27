@@ -221,52 +221,24 @@ module data_mem (clk, addr, write_data, memwrite, memread, sign_mask, read_data,
 		end
 	end
 
-	always @(negedge clk) begin
+	always @(negedge clk) begin	
 		memread_buf <= memread;
 		memwrite_buf <= memwrite;
+
+		word_buf <= data_block[addr_buf_block_addr - 32'h1000];
 	end
 
 	/*
 	 *	State machine
 	 */
 	always @(posedge clk) begin
-		case (state)
-			READ_INPUT: begin
-				/*
-				 *	Subtract out the size of the instruction memory.
-				 *	(Bad practice: The constant should be a `define).
-				 */
-				word_buf <= data_block[addr_buf_block_addr - 32'h1000];
-				if(memread_buf==1'b1) begin
-					state <= READ;
-					clk_stall <= 1;
-				end
-				else if(memwrite_buf == 1'b1) begin
-					state <= WRITE;
-					clk_stall <= 1;
-				end
-			end
-
-			READ: begin
-				clk_stall <= 0;
-				read_data <= 32'habababab; //read_buf;
-				state <= READ_INPUT;
-			end
-
-			WRITE: begin
-				clk_stall <= 0;
-
-				/*
-				 *	Subtract out the size of the instruction memory.
-				 *	(Bad practice: The constant should be a `define).
-				 */
-				data_block[addr_buf_block_addr - 32'h1000] <= replacement_word;
-				state <= READ_INPUT;
-			end
-
-		endcase
+		if (memread_buf==1'b1) begin
+			read_data <= read_buf;
+		end
+		else if (memwrite_buf==1'b1) begin
+			data_block[addr_buf_block_addr - 32'h1000] <= replacement_word;
+		end
 	end
-
 
 	/*
 	 *	Test led
