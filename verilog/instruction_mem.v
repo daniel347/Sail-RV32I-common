@@ -72,7 +72,7 @@ module instruction_memory(addr, out, clk);
 		/*
 		 *	read from "program.hex" and store the instructions in instruction memory
 		 */
-		$readmemh("verilog/program.hex",instruction_memory);
+		$readmemh("sail-core/verilog/program.hex",instruction_memory);
 	end
 	always @(posedge clk) begin
 		out <= instruction_memory[addr >> 2];
