@@ -8,45 +8,6 @@
  *
  *		This module implements the ALU for the RV32I.
  */
-module ALUlogic( A, B, sel, out);
-	input 		A;
-	input 		B;
-	input[1:0] 	sel;
-	output 		out;
-
-	assign out = sel[1]?(sel[0] ? (A && B) : (A ^ B) ):(sel[0] ? ( (!A) && B) : (A||B) );
-endmodule
-
-module ALUlogictotal(A,B, sel, out);
-	input[31:0] 	A;
-	input[31:0]	B;
-	input[1:0]	sel;
-	output[31:0]	out;
-
-	genvar i;
-
-	generate
-	for (i=0 ; i<32 ; i = i+1) begin
-		ALUlogic logunit(A[i],B[i],sel,out[i]);
-		end
-	endgenerate
-
-endmodule
-
-module ALUadr(input1,input2,ctl,out);
-	input [31:0] 	input1; 
-	input [31:0] 	input2;
-	input		ctl;  
-	output [32:0] 	out;
-	wire [31:0]	add1;
-	wire [31:0]	add2;
-	
-	
-	assign add1 = input1;
-	assign add2 = ctl ? ~(input2): input2;
-			/*assign out = ctl ? (add1 + add2) : (add1 + add2);*/
-	assign out = {1'b0,add1} + {1'b0,add2} + {32'b0,ctl};
-endmodule
 
 
 /*
@@ -62,14 +23,9 @@ module alu(ALUctl, A, B, ALUOut, Branch_Enable);
 	wire 			ucomp;
 	output reg [31:0]	ALUOut;
 	output reg		Branch_Enable;
-	wire[31:0]		logic_out;
-	wire[1:0]		logicstate;
 
 	ALUadrDSP ALUaddr_block(A,B,ALUctl[2],{ucomp,addr});
 
-	assign logicstate = { ~|(ALUctl[1:0]) , (&{ALUctl[3],ALUctl[2:0]} || &(~{ALUctl[3],ALUctl[2:0]}) ) };
-
-	ALUlogictotal ALUlog(A,B,logicstate,logic_out);
 	/*
 	 *	This uses Yosys's support for nonzero initial values:
 	 *
@@ -84,17 +40,17 @@ module alu(ALUctl, A, B, ALUOut, Branch_Enable);
 		Branch_Enable = 1'b0;
 	end
 
-	always @(ALUctl, A, B,addr,logic_out) begin
+	always @(ALUctl, A, B,addr) begin
 		case (ALUctl[3:0])
 			/*
 			 *	AND (the fields also match ANDI and LUI)
 			 */
-			`kSAIL_MICROARCHITECTURE_ALUCTL_3to0_AND:	ALUOut = logic_out;
+			`kSAIL_MICROARCHITECTURE_ALUCTL_3to0_AND:	ALUOut = A & B;
 
 			/*
 			 *	OR (the fields also match ORI)
 			 */
-			`kSAIL_MICROARCHITECTURE_ALUCTL_3to0_OR:	ALUOut = logic_out;
+			`kSAIL_MICROARCHITECTURE_ALUCTL_3to0_OR:	ALUOut = A | B;
 
 			/*
 			 *	ADD (the fields also match AUIPC, all loads, all stores, and ADDI)
@@ -129,7 +85,7 @@ module alu(ALUctl, A, B, ALUOut, Branch_Enable);
 			/*
 			 *	XOR (the fields also match other XOR variants)
 			 */
-			`kSAIL_MICROARCHITECTURE_ALUCTL_3to0_XOR:	ALUOut = logic_out;
+			`kSAIL_MICROARCHITECTURE_ALUCTL_3to0_XOR:	ALUOut = A ^ B;
 
 			/*
 			 *	CSRRW  only
@@ -139,12 +95,12 @@ module alu(ALUctl, A, B, ALUOut, Branch_Enable);
 			/*
 			 *	CSRRS only
 			 */
-			`kSAIL_MICROARCHITECTURE_ALUCTL_3to0_CSRRS:	ALUOut = logic_out;
+			`kSAIL_MICROARCHITECTURE_ALUCTL_3to0_CSRRS:	ALUOut = A | B;
 
 			/*
 			 *	CSRRC only
 			 */
-			`kSAIL_MICROARCHITECTURE_ALUCTL_3to0_CSRRC:	ALUOut = logic_out;
+			`kSAIL_MICROARCHITECTURE_ALUCTL_3to0_CSRRC:	ALUOut = (~A) & B;
 
 			/*
 			 *	Should never happen.
