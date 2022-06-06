@@ -60,16 +60,47 @@ module alu(ALUctl, A, B, ALUOut, Branch_Enable);
 	input [31:0]		B;
 	wire [31:0]		addr;
 	wire 			ucomp;
-	output reg [31:0]	ALUOut;
+	output [31:0]	        ALUOut;
 	output reg		Branch_Enable;
 	wire[31:0]		logic_out;
 	wire[1:0]		logicstate;
+	wire [31:0]		w1,w2,w3,w4,w5,w6,w7;
 
-	ALUadrDSP ALUaddr_block(A,B,ALUctl[2],{ucomp,addr});
+	ALUadr ALUaddr_block(A,B,ALUctl[2],{ucomp,addr});
 
 	assign logicstate = { ~|(ALUctl[1:0]) , (&{ALUctl[3],ALUctl[2:0]} || &(~{ALUctl[3],ALUctl[2:0]}) ) };
 
 	ALUlogictotal ALUlog(A,B,logicstate,logic_out);
+	
+
+	assign w1 = ( (ALUctl[3:0] == `kSAIL_MICROARCHITECTURE_ALUCTL_3to0_ADD) 
+		|| (ALUctl[3:0] == `kSAIL_MICROARCHITECTURE_ALUCTL_3to0_SUB) ) 
+		?  addr : 0;
+
+	assign w2 =   (ALUctl[3:0] == `kSAIL_MICROARCHITECTURE_ALUCTL_3to0_SLT) 
+		?  ((addr[31]) ? 32'b1 : 32'b0) : 0;
+
+	assign w3 = ( (ALUctl[3:0] == `kSAIL_MICROARCHITECTURE_ALUCTL_3to0_AND) 
+		|| (ALUctl[3:0] == `kSAIL_MICROARCHITECTURE_ALUCTL_3to0_OR) 
+		|| (ALUctl[3:0] == `kSAIL_MICROARCHITECTURE_ALUCTL_3to0_XOR)
+		|| (ALUctl[3:0] == `kSAIL_MICROARCHITECTURE_ALUCTL_3to0_CSRRS)
+		|| (ALUctl[3:0] == `kSAIL_MICROARCHITECTURE_ALUCTL_3to0_CSRRC) )
+		?  logic_out : 0;
+
+	assign w4 = (ALUctl[3:0] == `kSAIL_MICROARCHITECTURE_ALUCTL_3to0_SRL)
+		?  A >> B[4:0] : 0;
+	
+	assign w5 = (ALUctl[3:0] == `kSAIL_MICROARCHITECTURE_ALUCTL_3to0_SRA)
+		?  A >>> B[4:0] : 0;
+
+ 	assign w6 = (ALUctl[3:0] == `kSAIL_MICROARCHITECTURE_ALUCTL_3to0_SLL)
+		?  A << B[4:0] : 0;
+	
+	assign w7 =  (ALUctl[3:0] == `kSAIL_MICROARCHITECTURE_ALUCTL_3to0_CSRRW)
+		?  A : 0;
+ 
+ 
+
 	/*
 	 *	This uses Yosys's support for nonzero initial values:
 	 *
@@ -80,78 +111,10 @@ module alu(ALUctl, A, B, ALUOut, Branch_Enable);
 	 *	modules in the design.
 	 */
 	initial begin
-		ALUOut = 32'b0;
 		Branch_Enable = 1'b0;
 	end
 
-	always @(ALUctl, A, B,addr,logic_out) begin
-		case (ALUctl[3:0])
-			/*
-			 *	AND (the fields also match ANDI and LUI)
-			 */
-			`kSAIL_MICROARCHITECTURE_ALUCTL_3to0_AND:	ALUOut = logic_out;
-
-			/*
-			 *	OR (the fields also match ORI)
-			 */
-			`kSAIL_MICROARCHITECTURE_ALUCTL_3to0_OR:	ALUOut = logic_out;
-
-			/*
-			 *	ADD (the fields also match AUIPC, all loads, all stores, and ADDI)
-			 */
-			`kSAIL_MICROARCHITECTURE_ALUCTL_3to0_ADD:	ALUOut = addr;
-
-			/*
-			 *	SUBTRACT (the fields also matches all branches)
-			 */
-			`kSAIL_MICROARCHITECTURE_ALUCTL_3to0_SUB:	ALUOut = addr ;
-
-			/*
-			 *	SLT (the fields also matches all the other SLT variants)
-			 */
-			`kSAIL_MICROARCHITECTURE_ALUCTL_3to0_SLT:	ALUOut = (addr[31]) ? 32'b1 : 32'b0;
-
-			/*
-			 *	SRL (the fields also matches the other SRL variants)
-			 */
-			`kSAIL_MICROARCHITECTURE_ALUCTL_3to0_SRL:	ALUOut = A >> B[4:0];
-
-			/*
-			 *	SRA (the fields also matches the other SRA variants)
-			 */
-			`kSAIL_MICROARCHITECTURE_ALUCTL_3to0_SRA:	ALUOut = A >>> B[4:0];
-
-			/*
-			 *	SLL (the fields also match the other SLL variants)
-			 */
-			`kSAIL_MICROARCHITECTURE_ALUCTL_3to0_SLL:	ALUOut = A << B[4:0];
-
-			/*
-			 *	XOR (the fields also match other XOR variants)
-			 */
-			`kSAIL_MICROARCHITECTURE_ALUCTL_3to0_XOR:	ALUOut = logic_out;
-
-			/*
-			 *	CSRRW  only
-			 */
-			`kSAIL_MICROARCHITECTURE_ALUCTL_3to0_CSRRW:	ALUOut = A;
-
-			/*
-			 *	CSRRS only
-			 */
-			`kSAIL_MICROARCHITECTURE_ALUCTL_3to0_CSRRS:	ALUOut = logic_out;
-
-			/*
-			 *	CSRRC only
-			 */
-			`kSAIL_MICROARCHITECTURE_ALUCTL_3to0_CSRRC:	ALUOut = logic_out;
-
-			/*
-			 *	Should never happen.
-			*/
-			default:					ALUOut = 0;
-		endcase
-	end
+	assign ALUOut = w1 ^ w2 ^ w3 ^ w4 ^ w5 ^ w6 ^ w7;
 
 	always @(ALUctl, ALUOut, A, B,addr) begin
 		case (ALUctl[6:4])
